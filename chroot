@@ -1,0 +1,33 @@
+#!/bin/bash
+
+MNTROOT=/mnt/gentoo
+
+# Check that we can get our nameserver
+cp --dereference /etc/resolv.conf $MNTROOT/etc/
+
+# Mount parent systems into chroot
+mount --types proc /proc $MNTROOT/proc
+
+mount --rbind /sys $MNTROOT/sys
+mount --make-rslave $MNTROOT/sys
+
+mount --rbind /dev $MNTROOT/dev
+mount --make-rslave $MNTROOT/dev
+
+mount --bind /run $MNTROOT/run
+mount --make-slave $MNTROOT/run
+
+# Setup shm just to be sure
+test -L /dev/shm && rm /dev/shm && mkdir /dev/shm
+mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm
+chmod 1777 /dev/shm /run/shm
+
+# Setup the script to run to prepare the chroot environment
+echo source /etc/profile >$MNTROOT/root/setup.rc
+echo export PS1="(chroot) ${PS1}" >>$MNTROOT/root/setup.rc
+
+# Perform the chroot
+chroot $MNTROOT /bin/bash -i --rcfile ~/setup.rc
+
+# Clean up the chroot
+umount -l $MNTROOT/dev{/shm,/pts,}
